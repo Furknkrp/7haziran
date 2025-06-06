@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Doğum Günün Kutlu Olsun</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <style>
+        /* Temel Stil Ayarları */
+        html, body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* Taşmayı engeller */
+            font-family: 'Segoe UI', sans-serif;
+            background: radial-gradient(ellipse at bottom, #0d1b2a 0%, #000000 100%); /* Karanlık uzay efekti */
+            color: white;
+            height: 100%;
+            display: flex; /* İçerik ortalama için flexbox */
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        /* Canvas (Yıldızlar) */
+        canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 0; /* Arka planda kalır */
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Geri Sayım Kapsayıcı */
+        #countdown-wrapper {
+            z-index: 10;
+            position: relative;
+            text-align: center;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-grow: 1; /* Mevcut alanı kaplar */
+        }
+
+        /* Geri Sayım Sayacı */
+        #timer {
+            font-size: 4rem;
+            font-weight: bold;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(4px); /* Arka planı hafifçe bulanıklaştırır */
+            padding: 20px 40px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.05); /* Yarı şeffaf arka plan */
+            display: inline-block;
+            animation: glow 2s infinite alternate; /* Parlama animasyonu */
+            user-select: none; /* Metin seçimini engeller */
+            cursor: default; /* İmleç tipini değiştirir */
+        }
+
+        /* Parlama Animasyonu */
+        @keyframes glow {
+            from { box-shadow: 0 0 10px #ffffff40; }
+            to { box-shadow: 0 0 30px #ffffffa0; }
+        }
+
+        /* Mesaj Ekranı */
+        #message-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #003366, #3366cc); /* Mavi tonlarda gradyan */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 20;
+            opacity: 0; /* Başlangıçta gizli */
+            pointer-events: none; /* Tıklama olaylarını engeller */
+            transition: opacity 2s ease; /* Yumuşak geçiş */
+        }
+
+        #message-screen.show {
+            opacity: 1; /* Gösterildiğinde görünür olur */
+            pointer-events: auto; /* Tıklama olaylarını etkinleştirir */
+        }
+
+        /* Mesaj Satırları */
+        .msg-line {
+            opacity: 0; /* Başlangıçta gizli */
+            font-size: 1.5rem;
+            color: #fff0f5; /* Açık pembe tonu */
+            text-shadow: 0 0 10px #ffffff50;
+            margin: 1rem 0;
+            text-align: center;
+            max-width: 90%;
+            line-height: 1.5; /* Okunabilirliği artırır */
+        }
+
+        /* Duyarlı Tasarım (Responsive) */
+        @media (max-width: 768px) {
+            #timer {
+                font-size: 2.5rem;
+                padding: 15px 30px;
+            }
+            .msg-line {
+                font-size: 1.2rem;
+            }
+            #love-message {
+                font-size: 2.5rem !important;
+            }
+        }
+        @media (max-width: 480px) {
+            #timer {
+                font-size: 2rem;
+                padding: 10px 20px;
+            }
+            .msg-line {
+                font-size: 1rem;
+                margin: 0.8rem 0;
+            }
+            #love-message {
+                font-size: 2rem !important;
+            }
+        }
+
+        /* Yüzen Kalpler */
+        .floating {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            opacity: 0.7;
+            background-size: contain;
+            background-repeat: no-repeat;
+            animation: floatUp linear; /* floatUp animasyonu */
+        }
+
+        @keyframes floatUp {
+            0% { transform: translateY(100vh) scale(0.5) rotate(0deg); opacity: 0; } /* Alttan başlar, küçük ve şeffaf */
+            50% { opacity: 1; } /* Ortada tam görünür */
+            100% { transform: translateY(-120vh) scale(1.5) rotate(360deg); opacity: 0; } /* Üstten çıkar, büyük ve şeffaf */
+        }
+
+        /* "Seni Seviyorum" Mesajı */
+        #love-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3.5rem;
+            font-weight: bold;
+            color: #ff3366; /* Kırmızımsı pembe */
+            text-shadow:
+                0 0 10px #ff3366,
+                0 0 20px #ff3366,
+                0 0 40px #ff3366; /* Kırmızımsı parlama */
+            opacity: 0; /* Başlangıçta gizli */
+            z-index: 100;
+            pointer-events: none;
+            text-align: center; /* Ortalar */
+        }
+
+        /* Aşk Modu (Arka plan değişimi) */
+        body.love-mode {
+            background: radial-gradient(circle at center, #550000 0%, #220000 100%) !important; /* Kırmızımsı arka plan */
+            transition: background 2s ease-in-out; /* Yumuşak geçiş */
+        }
+    </style>
+</head>
+<body>
+    <canvas id="stars"></canvas>
+
+    <div id="countdown-wrapper">
+        <div id="timer">00:00:00</div>
+    </div>
+
+    <div id="message-screen">
+        <p class="msg-line" id="line1">00:00 olduuu ve artık senin günün başladı.</p>
+        <p class="msg-line" id="line2">İyi ki doğdun… iyi ki varsın.</p>
+        <p class="msg-line" id="line3">Daha seni yeni tanımışken bile hayatımda olman çok kıymetli hissettiriyor.</p>
+        <p class="msg-line" id="line4">Kutlamamızı erken yapmış olsak da gerçek doğum gününü ilk kutlayanlardan olmak istedim.</p>
+        <p class="msg-line" id="line5">Umarım bu yeni yaşın bolca gülümseme, huzur ve bizimle geçen güzel anılarla dolu olur.</p>
+        <p class="msg-line" id="line6">Nice nice doğum günlerine, birlikte…</p>
+    </div>
+
+    <div id="love-message">Seviyorum seni</div>
+
+    <script>
+        // Hedef tarihi buradan ayarlayın. Yıl, Ay (0-11), Gün, Saat, Dakika, Saniye
+        // Örnek: 2025 yılının 6. ayının (Temmuz) 7. günü saat 00:00:00
+        //const targetDate = new Date(2025, 6, 7, 0, 0, 0); 
+        const targetDate = new Date(new Date().getTime() + 10 * 1000); // 10 saniye sonra
+
+        const timerEl = document.getElementById('timer');
+        const messageScreen = document.getElementById('message-screen');
+        const loveMessage = document.getElementById('love-message');
+        let countdownInterval; // setInterval'ı temizlemek için tanımlıyoruz
+
+        // Geri sayımı güncelleyen fonksiyon
+        function updateCountdown() {
+            const now = new Date();
+            const diff = targetDate - now;
+
+            if (diff <= 0) {
+                // Geri sayım bittiğinde
+                timerEl.style.display = 'none'; // Sayacı gizle
+                messageScreen.classList.add('show'); // Mesaj ekranını göster
+                clearInterval(countdownInterval); // Geri sayım intervalini durdur
+                showMessages(); // Mesajları göstermeye başla
+                startHeartRain(); // Kalp yağmurunu başlat
+                return;
+            }
+
+            // Saat, dakika ve saniyeyi hesapla
+            const h = String(Math.floor(diff / (1000 * 60 * 60))).padStart(2, '0');
+            const m = String(Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))).padStart(2, '0');
+            const s = String(Math.floor((diff % (1000 * 60)) / 1000)).padStart(2, '0');
+            timerEl.textContent = `${h}:${m}:${s}`; // Sayacı güncelle
+        }
+
+        // Geri sayımı her saniye güncelle
+        countdownInterval = setInterval(updateCountdown, 1000);
+        updateCountdown(); // İlk çalıştırma
+
+        // Yıldız animasyonu
+        const canvas = document.getElementById('stars');
+        const ctx = canvas.getContext('2d');
+        let stars = []; // Yıldızları burada tutacağız
+
+        // Canvas boyutunu ayarlar ve yeniden boyutlandırmayı dinler
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            // Yeniden boyutlandırmada yıldızları yenile (isteğe bağlı, daha dinamik bir his verir)
+            generateStars(200); 
+        }
+
+        // Yıldızları oluşturan fonksiyon
+        function generateStars(count) {
+            stars = []; // Mevcut yıldızları temizle
+            for (let i = 0; i < count; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    radius: Math.random() * 1.5, // Yıldız boyutunu artırdık
+                    alpha: Math.random(),
+                    delta: Math.random() * 0.02 + 0.005 // Parlama hızını değiştirdik
+                });
+            }
+        }
+
+        // Yıldızları çizen fonksiyon
+        function drawStars() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // Her karede temizle
+            for (let star of stars) {
+                star.alpha += star.delta;
+                if (star.alpha <= 0.1 || star.alpha >= 1) star.delta *= -1; // Şeffaflık aralığını genişlettik
+                
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.radius, 0, 2 * Math.PI);
+                ctx.fillStyle = `rgba(255, 255, 255, ${star.alpha})`;
+                ctx.fill();
+            }
+            requestAnimationFrame(drawStars); // Sonraki kareyi iste
+        }
+
+        // İlk başlatma
+        resizeCanvas(); // İlk boyutu ayarla ve yıldızları oluştur
+        window.addEventListener('resize', resizeCanvas); // Yeniden boyutlandırmayı dinle
+        drawStars(); // Yıldız animasyonunu başlat
+
+        // Mesajları sırayla gösteren fonksiyon
+        function showMessages() {
+            const timeline = gsap.timeline({ defaults: { duration: 1.2, ease: "power2.out" } }); // Animasyon süresi ve kolaylığını ayarladık
+            for (let i = 1; i <= 6; i++) {
+                timeline.to(`#line${i}`, { opacity: 1, y: 0 }, i === 1 ? "+=0.5" : "-=0.6"); // Her mesaj için biraz gecikme ekledik, y ekseninde hafif bir hareketle gelsin
+            }
+        }
+
+        // Kalp yağmuru ve final efekti
+        function startHeartRain() {
+            let heartCount = 0;
+            const maxHearts = 150; // Toplam kalp sayısı
+            const heartsPerInterval = 3; // Her intervalde düşen kalp sayısı
+            const heartInterval = 400; // Kalp düşme hızı (ms)
+
+            const interval = setInterval(() => {
+                for (let i = 0; i < heartsPerInterval; i++) {
+                    const heart = document.createElement('div');
+                    heart.className = 'floating';
+                    heart.style.left = `${Math.random() * 100}vw`; // Ekranın rastgele genişliğinde
+                    heart.style.top = '100vh'; // Ekranın altından başlar
+                    heart.style.animationDuration = `${7 + Math.random() * 8}s`; // Animasyon süresi rastgeleleştirildi
+                    heart.style.animationDelay = `${Math.random() * 2}s`; // Gecikme eklendi
+                    heart.style.width = `${20 + Math.random() * 30}px`; // Kalp boyutları rastgeleleştirildi
+                    heart.style.height = heart.style.width; // Oranı koru
+                    heart.style.backgroundImage = `url('https://cdn-icons-png.flaticon.com/512/833/833472.png')`; // Kalp görseli
+                    heart.style.zIndex = 30;
+                    document.body.appendChild(heart);
+
+                    // Belirli bir süre sonra kalbi kaldır
+                    setTimeout(() => heart.remove(), parseFloat(heart.style.animationDuration) * 1000 + parseFloat(heart.style.animationDelay) * 1000 + 1000); // Animasyon bitince kaldır
+                }
+
+                heartCount += heartsPerInterval;
+                if (heartCount >= maxHearts) {
+                    clearInterval(interval); // Kalp yağmurunu durdur
+                    // Mesajlar bittikten sonra aşk moduna geç ve "Seni seviyorum" yazısını göster
+                    gsap.to("#message-screen", { opacity: 0, duration: 1.5, delay: 3, onComplete: () => {
+                        messageScreen.style.display = 'none'; // Ekranı tamamen kaldır
+                        document.body.classList.add('love-mode'); // Arka planı değiştir
+                        gsap.fromTo("#love-message", 
+                            { scale: 0.8, opacity: 0, y: 20 }, 
+                            { opacity: 1, scale: 1, y: 0, duration: 2, ease: "elastic.out(1, 0.5)" } // Daha dinamik giriş animasyonu
+                        );
+                    }});
+                }
+            }, heartInterval);
+        }
+    </script>
+</body>
+</html>
